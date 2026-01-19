@@ -416,9 +416,11 @@ void WebViewPanel::OnClose(wxCloseEvent& evt)
 
 void WebViewPanel::OnFreshLoginStatus(wxTimerEvent &event)
 {
+#if 0
     auto mainframe = Slic3r::GUI::wxGetApp().mainframe;
     if (mainframe && mainframe->m_webview == this)
         Slic3r::GUI::wxGetApp().get_login_info();
+#endif
 }
 
 void WebViewPanel::SetLoginPanelVisibility(bool bshow)
@@ -592,6 +594,7 @@ void WebViewPanel::OnNavigationComplete(wxWebViewEvent& evt)
     if (wxGetApp().get_mode() == comDevelop)
         wxLogMessage("%s", "Navigation complete; url='" + evt.GetURL() + "'");
     UpdateState();
+    ShowNetpluginTip();
 }
 
 /**
@@ -607,7 +610,6 @@ void WebViewPanel::OnDocumentLoaded(wxWebViewEvent& evt)
             wxLogMessage("%s", "Document loaded; url='" + evt.GetURL() + "'");
     }
     UpdateState();
-    ShowNetpluginTip();
 }
 
 void WebViewPanel::OnTitleChanged(wxWebViewEvent &evt)
@@ -890,12 +892,13 @@ void WebViewPanel::OnError(wxWebViewEvent& evt)
 
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__ << ": [" << category << "] " << evt.GetString().ToUTF8().data();
 
-    if (wxGetApp().get_mode() == comDevelop)
+    if (wxGetApp().get_mode() == comDevelop) 
+    {
         wxLogMessage("%s", "Error; url='" + evt.GetURL() + "', error='" + category + " (" + evt.GetString() + ")'");
 
-    //Show the info bar with an error
-    m_info->ShowMessage(_L("An error occurred loading ") + evt.GetURL() + "\n" +
-        "'" + category + "'", wxICON_ERROR);
+        // Show the info bar with an error
+        m_info->ShowMessage(_L("An error occurred loading ") + evt.GetURL() + "\n" + "'" + category + "'", wxICON_ERROR);
+    }
 
     UpdateState();
 }

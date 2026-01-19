@@ -1,3 +1,12 @@
-<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M3 6L7 9C8.5621 7.82843 9.4379 7.17157 11 6" stroke="white" stroke-linecap="round"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="18px" height="18px" viewBox="0 0 18 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>topbar_dropdown</title>
+    <g id="topbar_dropdown" stroke="none" fill="none" fill-rule="evenodd" stroke-linecap="square" stroke-linejoin="round" stroke-width="1">
+        <g id="编组" stroke="#333333">
+            <line x1="7.5" y1="6.5" x2="13.5" y2="6.5" id="路径"></line>
+            <line x1="7.5" y1="9.5" x2="13.5" y2="9.5" id="路径"></line>
+            <line x1="7.5" y1="12.5" x2="13.5" y2="12.5" id="路径"></line>
+            <rect id="矩形" x="4.5" y="3.5" width="12" height="12" rx="1"></rect>
+        </g>
+    </g>
 </svg>

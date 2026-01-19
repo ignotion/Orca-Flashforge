@@ -67,10 +67,12 @@ protected:
     // bool								m_settings_layout_changed {false};
     bool m_seq_top_layer_only_changed{false};
     bool m_recreate_GUI{false};
+    bool m_model_personalized_rec_visible{false};
 
 public:
     bool seq_top_layer_only_changed() const { return m_seq_top_layer_only_changed; }
     bool recreate_GUI() const { return m_recreate_GUI; }
+    bool model_personalized_rec_visible() const { return m_model_personalized_rec_visible; }
     void on_dpi_changed(const wxRect &suggested_rect) override;
 
 public:
@@ -105,13 +107,14 @@ public:
 
     wxBoxSizer *create_item_title(wxString title, wxWindow *parent, wxString tooltip);
     wxBoxSizer *create_item_combobox(wxString title, wxWindow *parent, wxString tooltip, std::string param, std::vector<wxString> vlist);
+    wxBoxSizer *create_item_combobox(wxString title, wxWindow *parent, wxString tooltip, std::string param, std::vector<wxString> vlist, std::vector<std::string> config_name_index);
     wxBoxSizer *create_item_region_combobox(wxString title, wxWindow *parent, wxString tooltip, std::vector<wxString> vlist);
     wxBoxSizer *create_item_language_combobox(wxString title, wxWindow *parent, wxString tooltip, int padding_left, std::string param, std::vector<const wxLanguageInfo *> vlist);
     wxBoxSizer *create_item_loglevel_combobox(wxString title, wxWindow *parent, wxString tooltip, std::vector<wxString> vlist);
     wxBoxSizer *create_item_checkbox(wxString title, wxWindow *parent, wxString tooltip, int padding_left, std::string param);
     wxBoxSizer *create_item_darkmode_checkbox(wxString title, wxWindow *parent, wxString tooltip, int padding_left, std::string param);
     void set_dark_mode();
-    wxBoxSizer *create_item_button(wxString title, wxString title2, wxWindow *parent, wxString tooltip, std::function<void()> onclick);
+    wxBoxSizer *create_item_button(wxString title, wxString title2, wxWindow *parent, wxString tooltip, wxString tooltip2, std::function<void()> onclick, bool button_on_left = false);
     wxWindow* create_item_downloads(wxWindow* parent, int padding_left, std::string param);
     wxBoxSizer *create_item_input(wxString title, wxString title2, wxWindow *parent, wxString tooltip, std::string param, std::function<void(wxString)> onchange = {});
     wxBoxSizer *create_item_backup_input(wxString title, wxWindow *parent, wxString tooltip, std::string param);
@@ -119,6 +122,9 @@ public:
         wxString title, wxWindow *parent, wxString tooltip, int padding_left, std::string parama, std::vector<wxString> vlista, std::vector<wxString> vlistb);
     wxBoxSizer *create_item_switch(wxString title, wxWindow *parent, wxString tooltip, std::string param);
     wxWindow *  create_item_radiobox(wxString title, wxWindow *parent, wxString tooltip, int padding_left, int groupid, std::string param);
+#ifdef WIN32
+    wxBoxSizer* create_item_link_association(wxWindow* parent, wxString url_prefix, wxString website_name);
+#endif // WIN32
 
     wxWindow* create_general_page();
     void create_gui_page();
@@ -137,6 +143,9 @@ public:
 protected:
     void OnSelectTabel(wxCommandEvent &event);
     void OnSelectRadio(wxMouseEvent &event);
+
+private:
+    std::tuple<wxBoxSizer*, ComboBox*> create_item_combobox_base(wxString title, wxWindow* parent, wxString tooltip, std::string param, std::vector<wxString> vlist, unsigned int current_index);
 };
 
 wxDECLARE_EVENT(EVT_PREFERENCES_SELECT_TAB, wxCommandEvent);

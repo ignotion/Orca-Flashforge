@@ -122,7 +122,17 @@ void ProgressBar::SetProgress(int step)
 }
 
 
-void ProgressBar::SetMinSize(const wxSize &size) 
+void ProgressBar::SetVerticalSpace(int space) 
+{
+    if (space * 2 >= m_miniHeight) {
+        return;
+    }
+    m_verticalSpace = space;
+    m_radius        = m_miniHeight / 2 - space;
+    Refresh();
+}
+
+void ProgressBar::SetMinSize(const wxSize& size)
 { 
     if (size.y >= miniHeight) { 
         m_miniHeight = size.y;
@@ -169,12 +179,17 @@ void ProgressBar::doRender(wxDC &dc)
 {
     if (m_step >= m_max) m_step = m_max;
     wxSize size   = GetSize();
+    size.y -= m_verticalSpace * 2;
+    if (m_shownumber) {
+        auto   textSize = dc.GetMultiLineTextExtent(wxString("000%"));
+        size.x  = size.x - textSize.x -  20;
+    }
     dc.SetPen(wxPen(m_progress_background_colour, 1));
     dc.SetBrush(wxBrush(m_progress_background_colour));
     if (m_radius == 0) {
-        dc.DrawRectangle(0, 0, size.x, size.y);
+        dc.DrawRectangle(0, m_verticalSpace, size.x, size.y);
     } else {
-        dc.DrawRoundedRectangle(0, 0, size.x, size.y, m_radius);
+        dc.DrawRoundedRectangle(0, m_verticalSpace, size.x, size.y, m_radius);
     }
 
     //draw progress 
@@ -185,19 +200,22 @@ void ProgressBar::doRender(wxDC &dc)
         dc.SetPen(wxPen(m_progress_colour_disable, 1));
         dc.SetBrush(wxBrush(m_progress_colour_disable));
         if (m_radius == 0) {
-            dc.DrawRectangle(0, 0, m_proportion, size.y);
+            dc.DrawRectangle(0, m_verticalSpace, m_proportion, size.y);
         } else {
-            dc.DrawRoundedRectangle(0, 0, m_proportion, size.y, m_radius);
+            dc.DrawRoundedRectangle(0, m_verticalSpace, m_proportion, size.y, m_radius);
         }
-
-        dc.SetFont(::Label::Head_12);
-        auto textSize = dc.GetMultiLineTextExtent(m_disable_text);
-        dc.SetTextForeground(wxColour(144, 144, 144));
-        auto pt = wxPoint();
-        pt.x    = (size.x - textSize.x) / 2;
-        pt.y    = (size.y - textSize.y) / 2;
-        dc.DrawText(m_disable_text, pt);
-
+        
+        if (m_shownumber) {
+            dc.SetFont(::Label::Head_12);
+            auto textSize = dc.GetMultiLineTextExtent(m_disable_text);
+            //dc.SetTextForeground(wxColour(144, 144, 144));
+            dc.SetTextForeground(wxColour(51, 51, 51));
+            auto pt = wxPoint();
+            //pt.x    = (size.x - textSize.x) / 2;
+            pt.x = size.x + 10;
+            pt.y    = (size.y + m_verticalSpace * 2 - textSize.y) / 2;
+            dc.DrawText(m_disable_text, pt);
+        }
     } else {
         m_proportion = float(size.x * float(this->m_step) / float(this->m_max));
         if (m_proportion < m_radius * 2  && m_proportion != 0) { m_proportion = m_radius * 2; }
@@ -205,26 +223,27 @@ void ProgressBar::doRender(wxDC &dc)
         dc.SetPen(wxPen(m_progress_colour, 1));
         dc.SetBrush(wxBrush(m_progress_colour));
         if (m_radius == 0) {
-            dc.DrawRectangle(0, 0, m_proportion, size.y);
+            dc.DrawRectangle(0, m_verticalSpace, m_proportion, size.y);
         } else {
-            dc.DrawRoundedRectangle(0, 0, m_proportion, size.y, m_radius);
-        }
-
-        dc.SetFont(GetFont());
-        auto textSize = dc.GetMultiLineTextExtent(wxString("000%"));
-        dc.SetTextForeground(wxColour(144, 144, 144));
-        auto pt = wxPoint();
-        pt.x    = (size.x - textSize.x) / 2;
-        pt.y    = (size.y - textSize.y) / 2;
-
-        auto text = wxString("");
-        if (m_step < 10) {
-            text = wxString::Format("%d", m_step);
-        } else {
-            text = wxString::Format("%d", m_step);
+            dc.DrawRoundedRectangle(0, m_verticalSpace, m_proportion, size.y, m_radius);
         }
 
         if (m_shownumber) {
+            dc.SetFont(GetFont());
+            auto textSize = dc.GetMultiLineTextExtent(wxString("000%"));
+            //dc.SetTextForeground(wxColour(144, 144, 144));
+            dc.SetTextForeground(wxColour(51, 51, 51));
+            auto pt = wxPoint();
+            //pt.x    = (size.x - textSize.x) / 2;
+            pt.x =  size.x + 10;
+            pt.y    = (size.y + m_verticalSpace * 2 - textSize.y) / 2;
+
+            auto text = wxString("");
+            if (m_step < 10) {
+                text = wxString::Format("%d", m_step);
+            } else {
+                text = wxString::Format("%d", m_step);
+            }
             dc.DrawText(text + wxString("%"), pt);
         }
     }

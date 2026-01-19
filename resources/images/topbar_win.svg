@@ -1,4 +1,10 @@
-<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect x="2.5" y="4.5" width="9.83333" height="7.66667" rx="0.5" stroke="#EBEBEB"/>
-<rect x="6.83325" y="8.83301" width="10.9167" height="7.66667" rx="0.5" stroke="#EBEBEB"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="18px" height="18px" viewBox="0 0 18 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>topbar_win</title>
+    <g id="topbar_win" stroke="none" fill="none" fill-rule="evenodd" stroke-linecap="square" stroke-linejoin="round" stroke-width="1">
+        <g id="编组" stroke="#333333">
+            <rect id="矩形" x="5.5" y="6.5" width="8" height="8" rx="1"></rect>
+            <path d="M7.5,6.5 L7.5,5.5 C7.5,4.94771525 7.94771525,4.5 8.5,4.5 L14.5,4.5 C15.0522847,4.5 15.5,4.94771525 15.5,5.5 L15.5,11.5 C15.5,12.0522847 15.0522847,12.5 14.5,12.5 L13.5,12.5" id="路径"></path>
+        </g>
+    </g>
 </svg>

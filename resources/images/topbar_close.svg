@@ -1,4 +1,10 @@
-<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<line x1="5.70711" y1="6" x2="15" y2="15.2929" stroke="#EBEBEB" stroke-linecap="round"/>
-<line x1="15" y1="5.70711" x2="5.70711" y2="15" stroke="#EBEBEB" stroke-linecap="round"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="18px" height="18px" viewBox="0 0 18 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>topbar_close</title>
+    <g id="topbar_close" stroke="none" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round" stroke-width="1">
+        <g id="编组" stroke="#333333">
+            <line x1="5.5" y1="4.5" x2="15.5" y2="14.5" id="路径"></line>
+            <line x1="15.5" y1="4.5" x2="5.5" y2="14.5" id="路径"></line>
+        </g>
+    </g>
 </svg>
