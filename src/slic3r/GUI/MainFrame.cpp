@@ -37,7 +37,6 @@
 #include "I18N.hpp"
 #include "GLCanvas3D.hpp"
 #include "Plater.hpp"
-#include "WebViewDialog.hpp"
 #include "../Utils/Process.hpp"
 #include "format.hpp"
 // BBS
@@ -63,6 +62,7 @@
 #include "Widgets/WebView.hpp"
 #include "DailyTips.hpp"
 #include "FlashForge/ExportLogs.hpp"
+#include "FlashForge/FFWebViewPanel.hpp"
 
 #ifdef _WIN32
 #include <dbt.h>
@@ -173,7 +173,7 @@ static const wxString ctrl = ("Ctrl+");
 static const wxString ctrl = _L("Ctrl+");
 #endif
 
-#define FLASH_MAKER_VERSION "2.2.0"
+#define FLASH_MAKER_VERSION "2.2.1"
 
 MainFrame::MainFrame() :
 DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_STYLE, "mainframe")
@@ -426,7 +426,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
     // BBS
     Fit();
 
-    const wxSize min_size = wxGetApp().get_min_size(); //wxSize(76*wxGetApp().em_unit(), 49*wxGetApp().em_unit());
+    const wxSize min_size = wxSize(FromDIP(1000), FromDIP(750));// wxGetApp().get_min_size(); //wxSize(76*wxGetApp().em_unit(), 49*wxGetApp().em_unit());
 
     SetMinSize(min_size/*wxSize(760, 490)*/);
     SetSize(wxSize(FromDIP(1200), FromDIP(800)));
@@ -490,6 +490,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
         this->shutdown();
         // propagate event
 
+        wxGetApp().start_report_tracking_data_exit_thread();
         wxGetApp().remove_mall_system_dialog();
         event.Skip();
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< ": mainframe finished process close_widow event";
@@ -627,7 +628,15 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
             evtHandler->Bind(wxEVT_TIMER, [evtHandler](wxTimerEvent &) {
                 std::string donotShowUpdateAppFirmwareMsg = wxGetApp().app_config->get("donotShowUpdateAppFirmwareMsg");
                 if (donotShowUpdateAppFirmwareMsg.empty()) {
-                    MessageDialog dlg(nullptr, wxString::Format(_L(R"(When using Orca-Flashforge V%s, please update Flash Maker to V%s, and also update your device firmware to the latest version.)"), Orca_Flashforge_VERSION, FLASH_MAKER_VERSION), wxEmptyString, wxOK | wxICON_INFORMATION);
+                    wxString dlg_info = wxString::Format(
+#if 0
+                        _L(R"(When using Flash Studio V%s, please update Flash Studio Mobile to V%s, and also update your device firmware to the latest version.)"),
+                        Orca_Flashforge_VERSION, FLASH_MAKER_VERSION);
+#else
+                        _L("When using Flash Studio Desktop V%s, please use Flash Studio Mobile APP instead of Flash Maker, and also update your device firmware to the latest version."
+                           "Please note that devices that are not updated will be displayed as offline and will be unable to connect."), Orca_Flashforge_VERSION);
+#endif
+                    MessageDialog dlg(nullptr, dlg_info, wxEmptyString, wxOK | wxICON_INFORMATION);
                     dlg.show_dsa_button(_L("Do not show again"));
                     dlg.ShowModal();
                     if (dlg.get_checkbox_state()) {
@@ -858,18 +867,29 @@ void MainFrame::update_layout()
     case ESettingsLayout::Old:
     {
         m_plater->Reparent(m_tabpanel);
-        m_tabpanel->InsertPage(tp3DEditor, m_plater, _L("Prepare"), std::string("tab_3d_active"), std::string("tab_3d_active"), false);
-        m_tabpanel->InsertPage(tpPreview, m_plater, _L("Preview"), std::string("tab_preview_active"), std::string("tab_preview_active"), false);
+        m_tabpanel->InsertPage(tp3DEditor, m_plater, _L("Prepare"), std::string("tab_3d_active"), std::string("tab_3d_inactive"), false);
+        m_tabpanel->InsertPage(tpPreview, m_plater, _L("Preview"), std::string("tab_preview_active"), std::string("tab_preview_inactive"), false);
         m_main_sizer->Add(m_tabpanel, 1, wxEXPAND | wxTOP, 0);
 
         m_tabpanel->Bind(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED, [this](wxCommandEvent& evt)
         {
             // jump to 3deditor under preview_only mode
-            if (evt.GetId() == tp3DEditor){
+            BOOST_LOG_TRIVIAL(warning) << "current page ------- " << evt.GetId(); 
+            if (evt.GetId() == tpHome) {
+                if (!wxGetApp().is_flashforge_login()) {
+                    m_webview->GoHome();
+                }
+            } else if (evt.GetId() == tp3DEditor){
                 m_plater->update(true);
 
                 if (!preview_only_hint())
                     return;
+            } else if (evt.GetId() == tpMonitor) {
+                static bool isFirstStep = true;
+                if (isFirstStep) {
+                    isFirstStep = false;
+                    showDevUnupdateDlg(this);
+                }
             }
             evt.Skip();
         });
@@ -1011,6 +1031,35 @@ void MainFrame::show_publish_button(bool show)
     // Layout();
 }
 
+void MainFrame::showDevUnupdateDlg(wxWindow* parent) 
+{
+    auto list = MultiComMgr::inst()->getDevUnupdateList();
+    if (list.empty()) {
+        return;
+    }
+    CallAfter([=]() {
+        wxString text = _L("The equipment needs to be updated. Please update the printer versions"
+                           ". The following printer versions require updating to ensure proper operation:");
+        text += "\n";
+        for (int i = 0; i < list.size(); i++) {
+            text += wxString::FromUTF8(list[i]);
+            if (i != list.size() - 1) {
+                text += ", ";
+            }
+        }
+        text += "\n";
+        text += _L("Please also upgrade the mobile app to the latest version to ensure its normal use.");
+        if (m_dev_unupdate_dlg) {
+            m_dev_unupdate_dlg->Close();
+            m_dev_unupdate_dlg->Destroy();
+            m_dev_unupdate_dlg = nullptr;
+        }
+        m_dev_unupdate_dlg = new MessageDialog(parent, text, _L("Info"));
+        m_dev_unupdate_dlg->SetMinSize(wxSize(FromDIP(600), -1));
+        m_dev_unupdate_dlg->Show();
+    });
+}
+
 void MainFrame::update_title_colour_after_set_title()
 {
 #ifdef __APPLE__
@@ -1136,13 +1185,13 @@ void MainFrame::init_tabpanel() {
     });
 
     if (wxGetApp().is_editor()) {
-        m_webview         = new WebViewPanel(m_tabpanel);
+        m_webview         = new FFWebViewPanel(m_tabpanel);
         Bind(EVT_LOAD_URL, [this](wxCommandEvent &evt) {
             wxString url = evt.GetString();
             select_tab(MainFrame::tpHome);
-            m_webview->load_url(url);
+            //m_webview->LoadUrl(url);
         });
-        m_tabpanel->AddPage(m_webview, "", "tab_home_active", "tab_home_active", false);
+        m_tabpanel->AddPage(m_webview, "", "tab_home_active", "tab_home_inactive", false);
         m_param_panel = new ParamsPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_LEFT | wxTAB_TRAVERSAL);
     }
 
@@ -1157,7 +1206,7 @@ void MainFrame::init_tabpanel() {
         //BBS add pages
     m_monitor = new MonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     m_monitor->SetBackgroundColour(*wxWHITE);
-    m_tabpanel->AddPage(m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
+    m_tabpanel->AddPage(m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_inactive"), false);
 
     m_printer_view = new PrinterWebView(m_tabpanel);
     Bind(EVT_LOAD_PRINTER_URL, [this](LoadPrinterViewEvent &evt) {
@@ -1182,7 +1231,7 @@ void MainFrame::init_tabpanel() {
 
     m_guide = new GuideWebPanel(m_tabpanel, wxID_ANY);
     m_guide->SetBackgroundColour(*wxWHITE);
-    m_tabpanel->AddPage(m_guide, _L("Guide"), std::string("guide_icon"), std::string("guide_icon"), false);
+    m_tabpanel->AddPage(m_guide, _L("Guide"), std::string("tab_guide_active"), std::string("tab_guide_inactive"), false);
 
 #if 0
     m_calibration = new CalibrationPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
@@ -1221,7 +1270,7 @@ void MainFrame::show_device(bool bBBLPrinter) {
             m_monitor->SetBackgroundColour(*wxWHITE);
         }
         m_monitor->Show(false);
-        m_tabpanel->InsertPage(tpMonitor, m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_active"));
+        m_tabpanel->InsertPage(tpMonitor, m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_inactive"));
 
         if (wxGetApp().is_enable_multi_machine()) {
             if (!m_multi_machine) {
@@ -1276,7 +1325,7 @@ void MainFrame::show_device(bool bBBLPrinter) {
         }
         m_printer_view->Show(false);
         m_tabpanel->InsertPage(tpMonitor, m_printer_view, _L("Device"), std::string("tab_monitor_active"),
-                               std::string("tab_monitor_active"));
+                               std::string("tab_monitor_inactive"));
     }
 }
 
@@ -2215,6 +2264,9 @@ void MainFrame::on_dpi_changed(const wxRect& suggested_rect)
     m_print_btn->Rescale();
     m_slice_option_btn->Rescale();
     m_print_option_btn->Rescale();
+    if (m_webview != nullptr) {
+        m_webview->Rescale();
+    }
 
     // update Plater
     wxGetApp().plater()->msw_rescale();
@@ -2253,6 +2305,9 @@ void MainFrame::on_dpi_changed(const wxRect& suggested_rect)
     /* To correct window rendering (especially redraw of a status bar)
      * we should imitate window resizing.
      */
+    const wxSize min_size = wxSize(FromDIP(1000), FromDIP(750));
+    SetMinSize(min_size);
+
     const wxSize& sz = this->GetSize();
     this->SetSize(sz.x + 1, sz.y + 1);
     this->SetSize(sz);
@@ -2346,7 +2401,8 @@ static wxMenu* generate_help_menu()
     // Check New Version
     append_menu_item(helpMenu, wxID_ANY, _L("Check for Update"), _L("Check for Update"),
         [](wxCommandEvent&) {
-            wxGetApp().check_new_version_sf(true, 1);
+            auto token = wxGetApp().app_config->get("access_token");
+            wxGetApp().check_new_version_sf(1, !token.empty());
         }, "", nullptr, []() {
             return true;
         });
@@ -3000,6 +3056,9 @@ void MainFrame::init_menubar_as_editor()
             dlg.ShowModal();
             plater()->get_current_canvas3D()->force_set_focus();
             wxGetApp().set_user_region();
+            if (dlg.model_personalized_rec_visible()) {
+                wxGetApp().mainframe->m_webview->SetUserConfig(wxGetApp().app_config->get("model_prersonalized_rec") == "true");
+            }
 #if ENABLE_GCODE_LINES_ID_IN_H_SLIDER
             if (dlg.seq_top_layer_only_changed() || dlg.seq_seq_top_gcode_indices_changed())
 #else
@@ -3939,14 +3998,22 @@ bool MainFrame::is_printer_view() const { return m_tabpanel->GetSelection() == T
 
 void MainFrame::refresh_plugin_tips()
 {
+#if 0
     if (m_webview != nullptr)
         m_webview->ShowNetpluginTip();
+#endif
 }
 
 void MainFrame::RunScript(wxString js)
 {
     if (m_webview != nullptr)
         m_webview->RunScript(js);
+}
+
+void MainFrame::ShowModelDetail(const std::string &data)
+{
+    if (m_webview != nullptr)
+        m_webview->ShowModelDetail(data);
 }
 
 void MainFrame::technology_changed()

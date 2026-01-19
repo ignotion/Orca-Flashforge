@@ -46,6 +46,7 @@ namespace Slic3r {
 namespace GUI
 {
 
+class FFWebViewPanel;
 class Tab;
 class PrintHostQueueDialog;
 class Plater;
@@ -261,7 +262,7 @@ public:
     void        set_max_recent_count(int max);
 
     void        show_publish_button(bool show);
-
+    void        showDevUnupdateDlg(wxWindow* parent);
 	void        update_title_colour_after_set_title();
     void        show_option(bool show);
     void        init_tabpanel();
@@ -349,6 +350,7 @@ public:
     bool        is_printer_view() const;
     void        refresh_plugin_tips();
     void RunScript(wxString js);
+    void ShowModelDetail(const std::string &data);
 
     //SoftFever
     void show_device(bool bBBLPrinter);
@@ -374,9 +376,10 @@ public:
     GuideWebPanel*        m_guide{ nullptr };
 
     CalibrationPanel*     m_calibration{ nullptr };
-    WebViewPanel*         m_webview { nullptr };
+    FFWebViewPanel*       m_webview { nullptr };
     PrinterWebView*       m_printer_view{nullptr};
     wxLogWindow*          m_log_window { nullptr };
+    MessageDialog*        m_dev_unupdate_dlg{nullptr};
     // BBS
     //wxBookCtrlBase*       m_tabpanel { nullptr };
     Notebook*             m_tabpanel{ nullptr };

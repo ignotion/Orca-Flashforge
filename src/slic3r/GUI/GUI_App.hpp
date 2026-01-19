@@ -12,11 +12,13 @@
 #include "slic3r/GUI/UserNotification.hpp"
 #include "slic3r/Utils/NetworkAgent.hpp"
 #include "slic3r/GUI/WebViewDialog.hpp"
+#include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/WebUserLoginDialog.hpp"
 #include "slic3r/GUI/HMS.hpp"
 #include "slic3r/GUI/Jobs/UpgradeNetworkJob.hpp"
 #include "slic3r/GUI/HttpServer.hpp"
 #include "../Utils/PrintHost.hpp"
+#include "slic3r/GUI/FlashForge/MultiComDef.hpp"
 
 #include <wx/app.h>
 #include <wx/colour.h>
@@ -75,6 +77,8 @@ struct ComGetUserProfileEvent;
 struct ComWanDevMaintainEvent;
 struct ComRefreshTokenEvent;
 struct ComBusGetRequestEvent;
+struct ComBusPostRequestEvent;
+struct ComConnSysNotifyEvent;
 class RemovableDriveManager;
 class OtherInstanceMessageHandler;
 class MainFrame;
@@ -312,6 +316,7 @@ private:
     ZUserLogin*     login_dlg { nullptr };
     //FlashForge login
     LoginDialog*    m_login_dlg {nullptr};
+    MessageDialog*  m_notify_dlg{nullptr};
     ReLoginDialog*  m_re_login_dlg{nullptr};
     ShowTip        *m_logout_tip{nullptr};
     bool            m_auto_connecting{false};
@@ -334,9 +339,13 @@ private:
     bool             m_show_gcode_window{false};
     boost::thread    m_check_network_thread;
 
-    bool             m_restart_app{false};
+    bool             m_first_auto_login{true};
     bool             m_login_success{false};
     wxImage          m_usr_pic_image;
+    bool             m_is_first_report_tracking_data_start{true};
+    std::thread      m_report_tracking_data_exit_thd;
+    std::string      m_ff_did;
+    std::string      m_ff_sid;
     std::unique_ptr<FFDownloadTool> m_download_tool;
 
   public:
@@ -404,6 +413,7 @@ private:
     const wxColour  get_label_default_clr_system();
     const wxColour  get_label_default_clr_modified();
     void            init_label_colours();
+    void            get_token_info(const com_token_data_t& token_data);
     void            update_label_colours_from_appconfig();
     void            update_publish_status();
     bool            has_model_mall();
@@ -477,7 +487,8 @@ private:
     void            get_login_info();
     bool            is_user_login();
     
-    void            auto_login_flashforge();
+    bool            auto_login_flashforge();
+    bool            is_flashforge_login();
     void            set_user_region();
     void            jump_to_user_points();
     void            update_user_points();
@@ -487,7 +498,7 @@ private:
     int             request_user_unbind(std::string dev_id);
     std::string     handle_web_request(std::string cmd);
     void            handle_show_user_points(const com_add_wan_dev_data_t &add_dev_data);
-    void            handle_login_result(std::string url, std::string name, std::string email, bool showUserPoints);
+    void            handle_login_result(const std::string& token, const com_add_wan_dev_data_t& add_dev_data, bool white_dlg = true);
     void            handle_login_out();
     void            handle_script_message(std::string msg);
     void            request_model_download(wxString url);
@@ -507,8 +518,12 @@ private:
     void            get_usr_profile(ComGetUserProfileEvent &event);
     void            wan_dev_maintain(ComWanDevMaintainEvent &event);
     void            refresh_access_token(ComRefreshTokenEvent &event);
+    void            connect_sys_notify(ComConnSysNotifyEvent &event);
     void            bus_get_request(ComBusGetRequestEvent &event);
+    void            bus_post_request(ComBusPostRequestEvent &event);
     void            onAutoStartLogin(wxCommandEvent& event);
+    void            start_report_tracking_data_exit_thread();
+    void            report_tracking_data_start_exit(bool isStart);
 
     // BBS
     bool            is_studio_active();
@@ -518,7 +533,7 @@ private:
 
     void            check_update(bool show_tips, int by_user);
     void            check_new_version(bool show_tips = false, int by_user = 0);
-    void            check_new_version_sf(bool show_tips = false, int by_user = 0);
+    void            check_new_version_sf(bool by_user = 0, bool use_uid = 0);
     void            request_new_version(int by_user);
     void            enter_force_upgrade();
     void            set_skip_version(bool skip = true);
@@ -705,7 +720,7 @@ private:
     void            disassociate_url(std::wstring url_prefix);
 
     // URL download - PrusaSlicer gets system call to open prusaslicer:// URL which should contain address of download
-    void            start_download(std::string url);
+    void            start_download(std::string url, std::string fileName = "");
 
     std::string     get_plugin_url(std::string name, std::string country_code);
     int             download_plugin(std::string name, std::string package_name, InstallProgressFn pro_fn = nullptr, WasCancelledFn cancel_fn = nullptr);

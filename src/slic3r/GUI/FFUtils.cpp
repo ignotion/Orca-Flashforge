@@ -1,7 +1,19 @@
 #include "FFUtils.hpp"
+#include <cstdint>
+#include <cctype>
+#include <chrono>
+#include <memory>
+#include <utility>
+#include <curl/curl.h>
+#include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/FlashForge/MultiComMgr.hpp"
-#include "GUI_App.hpp"
+
+#if wxUSE_WEBVIEW_EDGE
+#include <wx/msw/webview_edge.h>
+#elif defined(__WXMAC__)
+#include <wx/osx/webview_webkit.h>
+#endif
 
 namespace Slic3r::GUI
 {
@@ -451,6 +463,89 @@ wxRect FFUtils::calcContainedRect(const wxSize &containerSize, const wxSize &img
     rt.width = drawSize.x;
     rt.height = drawSize.y;
     return rt;
+}
+
+std::string FFUtils::getTimestampMsStr()
+{
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    int64_t msTime = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    return std::to_string(msTime);
+}
+
+std::string FFUtils::urlUnescape(const std::string &str)
+{
+    CURL *curl = curl_easy_init();
+    if (curl == nullptr) {
+        return str;
+    }
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> freeCurl(curl, curl_easy_cleanup);
+    int outLength = 0;
+    char *decodedStr = curl_easy_unescape(curl, str.c_str(), str.length(), &outLength);
+    if (decodedStr == nullptr) {
+        return str;
+    }
+    std::unique_ptr<char, decltype(&curl_free)> freeEscapeObjectName(decodedStr, curl_free);
+    return std::string(decodedStr, outLength);
+}
+
+long FFUtils::getHttpHeaders(const std::string &url, const std::vector<std::string> &keys,
+    const std::string &userAgent, std::map<std::string, std::string> &headerMap, int msTimeout)
+{
+    using client_data_t = std::pair<std::map<std::string, std::string> &, const std::vector<std::string> &>;
+    size_t (*headerCallback)(char *, size_t, size_t, void *) =
+        [](char *buffer, size_t size, size_t nitems, void *userData)-> size_t {
+            auto &clientData = *(client_data_t *)userData;
+            std::string header(buffer, size * nitems);
+            for (auto &key : clientData.second) {
+                bool equal = true;
+                for (size_t i = 0; i < header.size() && i < key.size(); ++i) {
+                    if (tolower(header[i]) != tolower(key[i])) {
+                        equal = false;
+                        break;
+                    }
+                }
+                if (equal) {
+                    clientData.first.emplace(key, header);
+                    break;
+                }
+            }
+            return size * nitems;
+        };
+    size_t (*writeCallback)(void *, size_t, size_t, void *) = 
+        [](void *ptr, size_t size, size_t nmemb, void *userdata) {
+            return (size_t)0;
+        };
+    CURL *curl = curl_easy_init();
+    if (curl == nullptr) {
+        return -1;
+    }
+    curl_slist *curlSlist = curl_slist_append(nullptr, userAgent.c_str());
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> freeCurl(curl, curl_easy_cleanup);
+    std::unique_ptr<curl_slist, decltype(&curl_slist_free_all)> freeCurlSlist(curlSlist, curl_slist_free_all);
+    client_data_t clientData(headerMap, keys);
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    //curl_easy_setopt(curl, CURLOPT_HTTPHEADER, curlSlist);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &clientData);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, headerCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, (long)msTimeout);
+    curl_easy_perform(curl);
+    long responseCode = -1;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &responseCode);
+    return responseCode;
+}
+
+wxWebView *FFUtils::CreateWebView(wxWindow *parent)
+{
+#ifdef __WIN32__
+    return new wxWebViewEdge(parent, wxID_ANY);
+#elif defined(__WXOSX__)
+    return new wxWebViewWebKit(parent, wxID_ANY);
+#else
+    return wxWebView::New(parent, wxID_ANY);
+#endif
 }
 
 } // end namespace
