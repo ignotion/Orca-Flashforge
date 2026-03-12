@@ -145,6 +145,12 @@ endif ()
 if (NOT MSVC)
     # ARMs (Raspberry PI) use an unsigned char by default. Let's make it consistent for Orca-Flashforge on all platforms.
     add_compile_options(-fsigned-char)
+    # Disable template-body warnings (new in GCC 15, incompatible with CGAL compiled with older GCC)
+    add_compile_options(-Wno-template-body)
+    # TBB has a mismatched enum definition between translation units with
+    # different versions; this spawns an innocuous warning on GCC15.
+    # Silence it globally so it doesn't break the build.
+    add_compile_options(-Wno-enum-compare)
 endif ()
 
 # Display and check CMAKE_PREFIX_PATH

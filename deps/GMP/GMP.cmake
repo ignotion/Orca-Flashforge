@@ -16,7 +16,7 @@ if (MSVC)
     add_custom_target(dep_GMP SOURCES ${_output})
 
 else ()
-    set(_gmp_ccflags "-O2 -DNDEBUG -fPIC -DPIC -Wall -Wmissing-prototypes -Wpointer-arith -pedantic -fomit-frame-pointer -fno-common")
+    set(_gmp_ccflags "-O0 -DNDEBUG -fPIC -DPIC -Wall -fno-common")
     set(_gmp_build_tgt "${CMAKE_SYSTEM_PROCESSOR}")
 
     if (APPLE)
@@ -59,8 +59,9 @@ else ()
         URL https://github.com/SoftFever/OrcaSlicer_deps/releases/download/gmp-6.2.1/gmp-6.2.1.tar.bz2
         URL_HASH SHA256=eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c
         DOWNLOAD_DIR ${DEP_DOWNLOAD_DIR}/GMP
-        BUILD_IN_SOURCE ON 
-        CONFIGURE_COMMAND  env "CFLAGS=${_gmp_ccflags}" "CXXFLAGS=${_gmp_ccflags}" ./configure ${_cross_compile_arg} --enable-shared=no --enable-cxx=yes --enable-static=yes "--prefix=${DESTDIR}" ${_gmp_build_tgt}
+        BUILD_IN_SOURCE ON
+        PATCH_COMMAND bash ${CMAKE_CURRENT_LIST_DIR}/fix-gmp-gcc15.sh <SOURCE_DIR>
+        CONFIGURE_COMMAND  env "CFLAGS=${_gmp_ccflags}" "CXXFLAGS=${_gmp_ccflags}" "amp_cv_c_long_long_reliable=yes" ./configure ${_cross_compile_arg} --enable-shared=no --enable-cxx=yes --enable-static=yes "--prefix=${DESTDIR}" ${_gmp_build_tgt} --disable-maintainer-mode
         BUILD_COMMAND     make -j
         INSTALL_COMMAND   make install
     )

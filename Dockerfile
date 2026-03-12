@@ -40,7 +40,6 @@ RUN apt-get update && apt-get install  -y \
     libtool \
     libudev-dev \
     libwayland-dev \
-    libwebkit2gtk-4.0-dev \
     libxkbcommon-dev \
     locales \
     locales-all \
@@ -48,6 +47,7 @@ RUN apt-get update && apt-get install  -y \
     pkgconf \
     sudo \
     wayland-protocols \
+   libwebkit2gtk-4.1-dev \
     wget
 
 # Change your locale here if you want.  See the output

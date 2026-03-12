@@ -44,7 +44,8 @@ unset name
 while getopts ":1bcdghirstu" opt; do
   case ${opt} in
     1 )
-        export CMAKE_BUILD_PARALLEL_LEVEL=1
+        export ls
+        =1
         ;;
     b )
         BUILD_DEBUG="1"
@@ -153,6 +154,20 @@ fi
 if [[ -n "${BUILD_ORCA}" ]]
 then
     echo "Configuring Orca-Flashforge..."
+    # Ensure build directory uses the expected generator.  CMake will
+    # complain if it's been configured previously with a different
+    # generator (e.g. Unix Makefiles when we always invoke Ninja).  If
+    # that happens we remove the directory so that cmake can reconfigure
+    # cleanly.  Users can still pass -c/--clean to force a full clean.
+    if [[ -d build/CMakeCache.txt ]]; then
+        prev_gen=$(grep '^CMAKE_GENERATOR:' build/CMakeCache.txt | cut -d'=' -f2)
+        if [[ -n "$prev_gen" && "$prev_gen" != "Ninja" ]]; then
+            echo "WARNING: build directory was configured with generator '$prev_gen'."
+            echo "Removing build directory to avoid mismatch with Ninja."
+            rm -fr build
+        fi
+    fi
+
     if [[ -n "${CLEAN_BUILD}" ]]
     then
         rm -fr build
@@ -181,8 +196,8 @@ then
     echo "done"
     echo "Building Orca-Flashforge ..."
     cmake --build build --target Orca-Flashforge
-    echo "Building Orca-Flashforge_profile_validator .."
-    cmake --build build --target Orca-Flashforge_profile_validator
+    echo "Building OrcaSlicer_profile_validator .."
+    cmake --build build --target OrcaSlicer_profile_validator
     ./run_gettext.sh
     echo "done"
 fi
